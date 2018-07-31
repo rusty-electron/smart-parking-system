@@ -10,7 +10,9 @@ const byte address[6] = "00001";
 #define TRIGGER_PIN  7
 #define ECHO_PIN     6
 #define MAX_DISTANCE 350
-#define SIZE 30
+#define SIZE 20
+
+#define STR_SIZE 30
 
 #define addr 0x0D
 
@@ -24,6 +26,12 @@ unsigned long runTime;
 
 unsigned long distTimer;
 unsigned int carPresent = 0;
+long b_store =0;
+unsigned int b_count = 0;
+unsigned int startFlag = 0;
+
+char text[60];
+String str = "";
 
 //**flags
 int checkMode = 0;
@@ -59,9 +67,25 @@ void detectionFunction(){
     Serial.print(b_new);
     Serial.print(", B_PREV: ");
     Serial.println(b_prev);
+    
+    //--------------------------------------------------
+    str = "Anomaly -- B_NEW: "+String(b_new);
+    str.toCharArray(text,STR_SIZE);
+    radio.write(&text, sizeof(text));
+
+    str = "B_PREV: "+String(b_prev);
+    str.toCharArray(text,STR_SIZE);
+    radio.write(&text, sizeof(text));
+    //--------------------------------------------------
 
     Serial.print("Waiting for Distance Response");
 
+    //--------------------------------------------------
+    str = "Waiting for Distance Response";
+    str.toCharArray(text,STR_SIZE);
+    radio.write(&text, sizeof(text));
+    //--------------------------------------------------
+    
     checkMode = 1; 
     distTimer = millis();
   }
@@ -110,45 +134,102 @@ void loop() {
   y/=10;
   z/=10;
   
-  b_prev = b_new;
   b_new = sqrt(x*x + y*y + z*z); 
   
-  if(runTime > 2500){
+  if(runTime > 6000){
     Serial.println("C");
+    //--------------------------------------------------
+    str = "C";
+    str.toCharArray(text,STR_SIZE);
+    radio.write(&text, sizeof(text));
+    //--------------------------------------------------
+    if(startFlag==0){
+      b_prev = b_store/b_count;
+      Serial.print("B_PREV: ");
+      Serial.println(b_prev);
+      Serial.print("READINGS TAKEN: ");
+      Serial.println(b_count);
+
+      //--------------------------------------------------
+      str = "B_PREV: "+String(b_prev)+", READINGS TAKEN: "+String(b_count);
+      str.toCharArray(text,STR_SIZE);
+      radio.write(&text, sizeof(text));
+      //--------------------------------------------------
+      
+      startFlag=1;
+    }
     detectionFunction();
   }else{
+    if(runTime <= 6000 && runTime >= 2500){
+       b_store+=b_new;
+       b_count++;
+    }
     runTime = millis();
   }
 
   if(checkMode == 1){
-    if((millis()-distTimer)>4000){
+    if((millis()-distTimer)>6000){
     checkMode = 0;
     
     Serial.print("DISTANCE: ");
     Serial.println(mean);
+
+    //--------------------------------------------------
+    str = "DISTANCE: "+String(mean);
+    str.toCharArray(text,STR_SIZE);
+    radio.write(&text, sizeof(text));
+    //--------------------------------------------------
+    
     if(mean<distLimit){
       if(carPresent==0){
         Serial.println("**CAR PRESENCE DETECTED**");
+
+        //--------------------------------------------------
+        str = "**CAR PRESENCE DETECTED**";
+        str.toCharArray(text,STR_SIZE);
+        radio.write(&text, sizeof(text));
+        //--------------------------------------------------
+        
         carPresent=1;
         delay(2000);
        }else{
         Serial.println("**FALSE VARIATION**");
+
+        //--------------------------------------------------
+        str = "**FALSE VARIATION**";
+        str.toCharArray(text,STR_SIZE);
+        radio.write(&text, sizeof(text));
+        //--------------------------------------------------
+        
        }
      }else{
       if(carPresent==1){
         Serial.println("**CAR ABSENCE DETECTED**");
+
+        //--------------------------------------------------
+        str = "**CAR ABSENCE DETECTED**";
+        str.toCharArray(text,STR_SIZE);
+        radio.write(&text, sizeof(text));
+        //--------------------------------------------------
+        
         carPresent=0;
         delay(2000);
        }else{
         Serial.println("**FALSE VARIATION**");
+
+        //--------------------------------------------------
+        str = "**FALSE VARIATION**";
+        str.toCharArray(text,STR_SIZE);
+        radio.write(&text, sizeof(text));
+        //--------------------------------------------------
+        
        }
      }
    }
   }
   
-  char text[20];
   String str = String(mean) + ", " + String(b_new);
-  str.toCharArray(text,20);
+  str.toCharArray(text,STR_SIZE);
   radio.write(&text, sizeof(text));
   Serial.println(text);
   delay(100);
