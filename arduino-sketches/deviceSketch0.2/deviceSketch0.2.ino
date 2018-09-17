@@ -30,6 +30,9 @@ long b_store =0;
 unsigned int b_count = 0;
 unsigned int startFlag = 0;
 
+unsigned int reStack = 0;
+unsigned int reStackflag = 0;
+
 char text[60];
 String str = "";
 
@@ -85,9 +88,15 @@ void detectionFunction(){
     str.toCharArray(text,STR_SIZE);
     radio.write(&text, sizeof(text));
     //--------------------------------------------------
-    
+
+    reStack += b_new;
+    reStackflag += 1;
+
     checkMode = 1; 
     distTimer = millis();
+  }else{
+      reStackflag =0;
+      reStack=0;
   }
 }
 
@@ -159,6 +168,20 @@ void loop() {
       startFlag=1;
     }
     detectionFunction();
+    if(reStackflag==10){
+      b_prev = reStack/10;
+      reStackflag=0;
+      reStack=0;
+      
+      Serial.print("\nRECALIBRATING LOCAL FIELD\nB_PREV: ");
+      Serial.println(b_prev);
+
+      //--------------------------------------------------
+      str = "RECALIBRATING LOCAL FIELD\nB_PREV: "+String(b_prev);
+      str.toCharArray(text,STR_SIZE);
+      radio.write(&text, sizeof(text));
+      //--------------------------------------------------
+    }
   }else{
     if(runTime <= 6000 && runTime >= 2500){
        b_store+=b_new;
