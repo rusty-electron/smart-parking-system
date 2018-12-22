@@ -33,6 +33,10 @@ unsigned int startFlag = 0;
 unsigned int reStack = 0;
 unsigned int reStackflag = 0;
 
+unsigned int rsflag=0;
+unsigned int normRun=0;
+unsigned long reStackTimer;
+
 char text[60];
 String str = "";
 
@@ -61,8 +65,10 @@ void sonicOutput(){
       delay(50);
 }
 
-void detectionFunction(){
-  int diff = b_new - b_prev;
+void detectionFunction(){ //called whenever we need the readings of ultrasonic sensor 
+  normRun++;
+  
+  int diff = b_new - b_prev; 
   diff = abs(diff);
   if(diff > fieldLimit){
     Serial.println("Anomaly Detected in Local Field");
@@ -81,22 +87,22 @@ void detectionFunction(){
     radio.write(&text, sizeof(text));
     //--------------------------------------------------
 
-    Serial.print("Waiting for Distance Response");
+    Serial.println("Waiting for Distance Response");
 
     //--------------------------------------------------
     str = "Waiting for Distance Response";
     str.toCharArray(text,STR_SIZE);
     radio.write(&text, sizeof(text));
     //--------------------------------------------------
-
+    if(rsflag==0){
+      reStackTimer = millis();
+      rsflag=1;
+    }
     reStack += b_new;
     reStackflag += 1;
 
     checkMode = 1; 
     distTimer = millis();
-  }else{
-      reStackflag =0;
-      reStack=0;
   }
 }
 
@@ -143,7 +149,7 @@ void loop() {
   y/=10;
   z/=10;
   
-  b_new = sqrt(x*x + y*y + z*z); 
+  b_new = sqrt(x*x + y*y + z*z); // Current value read by magnetometer
   
   if(runTime > 6000){
     Serial.println("C");
@@ -168,10 +174,16 @@ void loop() {
       startFlag=1;
     }
     detectionFunction();
-    if(reStackflag==5){
-      b_prev = reStack/5;
+    Serial.println((float)reStackflag/(float)normRun);
+    
+    if((millis()-reStackTimer)>3000 && ((float)reStackflag/(float)normRun > 0.3) && rsflag==1){
+      
+      
+      b_prev = reStack/reStackflag;
       reStackflag=0;
       reStack=0;
+      normRun=0;
+      rsflag=0;
       
       Serial.print("\nRECALIBRATING LOCAL FIELD\nB_PREV: ");
       Serial.println(b_prev);
@@ -181,6 +193,11 @@ void loop() {
       str.toCharArray(text,STR_SIZE);
       radio.write(&text, sizeof(text));
       //--------------------------------------------------
+    }else if((millis()-reStackTimer)>5000 && rsflag==1){
+      rsflag==0;
+      reStackflag=0;
+      reStack=0;
+      normRun=0;
     }
   }else{
     if(runTime <= 6000 && runTime >= 2500){
